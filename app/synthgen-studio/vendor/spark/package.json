@@ -1,0 +1,16 @@
+{
+  "name": "@sparkjsdev/spark",
+  "version": "2.3.1",
+  "type": "module",
+  "license": "MIT",
+  "module": "./lib/spark.module.js",
+  "main": "./lib/spark.module.js",
+  "types": "./lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "import": "./lib/spark.module.js",
+      "default": "./lib/spark.module.js"
+    }
+  }
+}

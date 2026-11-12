@@ -1,0 +1,131 @@
+resources:
+  jobs:
+    synthgen_setup:
+      name: synthgen-3d-setup
+      description: One-time staging of IDOL wheel, model weights and gsplat CUDA build cache into Unity Catalog volumes.
+      environments:
+        - environment_key: gpu_setup
+          spec:
+            environment_version: "6"
+            dependencies:
+              - torch==2.15.0
+              - gsplat==1.5.3
+              - plyfile
+              - ninja
+              - pillow
+              - huggingface_hub>=0.25
+      tasks:
+        - task_key: setup
+          environment_key: gpu_setup
+          compute:
+            hardware_accelerator: ${var.gpu_accelerator}
+          timeout_seconds: 5400
+          notebook_task:
+            notebook_path: ../src/00_setup.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              hf_secret_scope: ${var.hf_secret_scope}
+              hf_secret_key: ${var.hf_secret_key}
+
+    synthgen_pipeline:
+      name: synthgen-3d-pipeline
+      description: Photo -> IDOL 3D Gaussian splat -> gsplat synthetic renders with bboxes -> YOLO detector registered in UC.
+      max_concurrent_runs: 3
+      queue:
+        enabled: true
+      tags:
+        demo: synthgen-3d
+      parameters:
+        - name: image_volume_path
+          default: /Volumes/${var.catalog}/${var.schema}/raw_inputs/samples/bearing_fag_6304.jpg
+        - name: target_class_name
+          default: bearing
+        - name: gaussian_count
+          default: "262144"
+        - name: idol_steps
+          default: "50"
+        - name: num_views
+          default: "300"
+        - name: image_size
+          default: "640"
+        - name: epochs
+          default: "30"
+        - name: submitted_by
+          default: ""
+      environments:
+        - environment_key: gpu_render
+          spec:
+            environment_version: "6"
+            dependencies:
+              - ${var.idol_wheel}
+              - torch==2.15.0
+              - gsplat==1.5.3
+              - plyfile
+              - ninja
+              - pillow
+              - huggingface_hub>=0.25
+        - environment_key: gpu_train
+          spec:
+            environment_version: "6"
+            dependencies:
+              - ultralytics==8.4.209
+              - mlflow==3.18.0
+              - opencv-python-headless==4.11.0.86
+              - pillow
+              - pandas
+      tasks:
+        - task_key: generate_3d_splat
+          environment_key: gpu_render
+          compute:
+            hardware_accelerator: ${var.gpu_accelerator}
+          timeout_seconds: 2400
+          notebook_task:
+            notebook_path: ../src/01_generate_splat.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              job_run_id: "{{job.run_id}}"
+              image_volume_path: "{{job.parameters.image_volume_path}}"
+              target_class_name: "{{job.parameters.target_class_name}}"
+              gaussian_count: "{{job.parameters.gaussian_count}}"
+              idol_steps: "{{job.parameters.idol_steps}}"
+              submitted_by: "{{job.parameters.submitted_by}}"
+              hf_secret_scope: ${var.hf_secret_scope}
+              hf_secret_key: ${var.hf_secret_key}
+
+        - task_key: render_synthetic_dataset
+          depends_on:
+            - task_key: generate_3d_splat
+          environment_key: gpu_render
+          compute:
+            hardware_accelerator: ${var.gpu_accelerator}
+          timeout_seconds: 2400
+          notebook_task:
+            notebook_path: ../src/02_render_dataset.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              job_run_id: "{{job.run_id}}"
+              target_class_name: "{{job.parameters.target_class_name}}"
+              num_views: "{{job.parameters.num_views}}"
+              image_size: "{{job.parameters.image_size}}"
+
+        - task_key: train_vision_detector
+          depends_on:
+            - task_key: render_synthetic_dataset
+          environment_key: gpu_train
+          compute:
+            hardware_accelerator: ${var.gpu_accelerator}
+          timeout_seconds: 3600
+          notebook_task:
+            notebook_path: ../src/03_train_detector.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              job_run_id: "{{job.run_id}}"
+              target_class_name: "{{job.parameters.target_class_name}}"
+              epochs: "{{job.parameters.epochs}}"
+              image_size: "{{job.parameters.image_size}}"
+              image_volume_path: "{{job.parameters.image_volume_path}}"
+              experiment_path: /Shared/synthgen-3d

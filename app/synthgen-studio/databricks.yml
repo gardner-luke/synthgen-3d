@@ -1,0 +1,92 @@
+bundle:
+  name: synthgen-studio
+
+# Workspace-specific values go in .databricks/bundle/default/variable-overrides.json (gitignored)
+# or on the command line: databricks bundle deploy --var sql_warehouse_id=... --var pipeline_job_id=...
+variables:
+  sql_warehouse_id:
+    description: SQL warehouse the app queries (CAN_USE is granted to the app service principal)
+  pipeline_job_id:
+    description: Job id of the synthgen_pipeline job deployed by the root bundle
+  catalog:
+    description: Catalog the pipeline writes to
+    default: main
+  schema:
+    default: synthgen_3d
+  golden_run_id:
+    description: Optional finished pipeline run the app opens by default ("" = newest registered run)
+    default: ""
+
+resources:
+  apps:
+    app:
+      name: synthgen-studio
+      description: "One photo to a 3D Gaussian splat, a synthetic dataset and a trained detector, governed in Unity Catalog"
+      source_code_path: ./
+      config:
+        command: ['npm', 'run', 'start']
+        env:
+          - name: DATABRICKS_WAREHOUSE_ID
+            value_from: sql-warehouse
+          - name: DATABRICKS_JOB_PIPELINE
+            value_from: pipeline-job
+          # AppKit's jobs plugin requires DATABRICKS_JOB_ID (static manifest) even when a named job key is used.
+          - name: DATABRICKS_JOB_ID
+            value_from: pipeline-job
+          # AppKit's files plugin requires DATABRICKS_VOLUME_FILES (static manifest); its policy is denyAll in server.ts.
+          - name: DATABRICKS_VOLUME_FILES
+            value: /Volumes/${var.catalog}/${var.schema}/raw_inputs
+          - name: DATABRICKS_VOLUME_RAW
+            value: /Volumes/${var.catalog}/${var.schema}/raw_inputs
+          - name: DATABRICKS_VOLUME_SPLATS
+            value: /Volumes/${var.catalog}/${var.schema}/splat_models
+          - name: DATABRICKS_VOLUME_DATASET
+            value: /Volumes/${var.catalog}/${var.schema}/synthetic_dataset
+          - name: GOLDEN_RUN_ID
+            value: ${var.golden_run_id}
+      lifecycle:
+        started: true
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.sql_warehouse_id}
+            permission: CAN_USE
+        - name: pipeline-job
+          job:
+            id: ${var.pipeline_job_id}
+            permission: CAN_MANAGE_RUN
+        - name: raw-volume
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.raw_inputs
+            securable_type: VOLUME
+            permission: WRITE_VOLUME
+        - name: splats-volume
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.splat_models
+            securable_type: VOLUME
+            permission: READ_VOLUME
+        - name: dataset-volume
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.synthetic_dataset
+            securable_type: VOLUME
+            permission: READ_VOLUME
+        - name: runs-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.pipeline_runs
+            securable_type: TABLE
+            permission: SELECT
+        - name: views-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.synthetic_views
+            securable_type: TABLE
+            permission: SELECT
+        - name: epochs-table
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.training_epochs
+            securable_type: TABLE
+            permission: SELECT
+
+targets:
+  # Pick the workspace with a CLI profile: databricks bundle deploy -p <profile>
+  default:
+    default: true

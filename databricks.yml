@@ -1,0 +1,30 @@
+bundle:
+  name: synthgen-3d
+
+include:
+  - resources/*.yml
+
+# Workspace-specific values go in .databricks/bundle/dev/variable-overrides.json (gitignored) or --var flags.
+variables:
+  catalog:
+    description: Catalog for the synthgen_3d schema, volumes, tables and registered model
+    default: main
+  schema:
+    default: synthgen_3d
+  gpu_accelerator:
+    description: Serverless GPU type for pipeline tasks (GPU_1xA10 or GPU_1xH100)
+    default: GPU_1xA10
+  hf_secret_scope:
+    description: Secret scope holding a Hugging Face token with access to the gated FLUX.2-dev and DINOv3 repos
+    default: synthgen
+  hf_secret_key:
+    default: huggingface
+  idol_wheel:
+    description: IDOL SDK wheel built by the setup job into the model_cache volume
+    default: /Volumes/${var.catalog}/${var.schema}/model_cache/wheels/idol-0.1.0-py3-none-any.whl
+
+targets:
+  dev:
+    default: true
+    mode: development
+    # Pick the workspace with a CLI profile: databricks bundle deploy -p <profile>

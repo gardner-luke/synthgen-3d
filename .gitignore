@@ -1,0 +1,16 @@
+# Bundle state and workspace-specific variable overrides
+.databricks/
+**/.databricks/
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Build output and deps
+node_modules/
+dist/
+__pycache__/
+*.pyc
+
+.DS_Store

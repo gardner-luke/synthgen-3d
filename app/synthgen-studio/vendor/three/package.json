@@ -1,0 +1,17 @@
+{
+  "name": "three",
+  "version": "0.186.1",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "module": "./lib/three.module.js",
+  "main": "./lib/three.module.js",
+  "exports": {
+    ".": {
+      "import": "./lib/three.module.js",
+      "default": "./lib/three.module.js"
+    },
+    "./examples/jsm/*": "./examples/jsm/*",
+    "./addons/*": "./examples/jsm/*"
+  }
+}

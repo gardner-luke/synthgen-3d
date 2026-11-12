@@ -1,0 +1,129 @@
+@import "@databricks/appkit-ui/styles.css";
+
+/*
+ * Databricks product look (Du Bois design language) layered on AppKit's tokens.
+ * Components keep using semantic tokens (bg-card, text-muted-foreground, ...); only the values change here.
+ */
+:root {
+  --radius: 0.375rem; /* md = 4px (buttons, inputs), lg = 6px (cards) */
+
+  --background: #ffffff;
+  --foreground: #11171c;
+  --card: #ffffff;
+  --card-foreground: #11171c;
+  --popover: #ffffff;
+  --popover-foreground: #11171c;
+  --primary: #2272b4;
+  --primary-foreground: #ffffff;
+  --secondary: #f6f7f9;
+  --secondary-foreground: #11171c;
+  --muted: #f6f7f9;
+  --muted-foreground: #5f7281;
+  --accent: rgba(34, 114, 180, 0.08);
+  --accent-foreground: #0e538b;
+  --destructive: #c82d4c;
+  --destructive-foreground: #ffffff;
+  --success: #277c43;
+  --success-foreground: #ffffff;
+  --warning: #be501e;
+  --warning-foreground: #ffffff;
+  --border: #d1d9e1;
+  --input: #d1d9e1;
+  --ring: #2272b4;
+
+  --sidebar: #f6f7f9;
+  --sidebar-foreground: #11171c;
+  --sidebar-primary: #2272b4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgba(34, 114, 180, 0.08);
+  --sidebar-accent-foreground: #0e538b;
+  --sidebar-border: #e8ecf0;
+  --sidebar-ring: #2272b4;
+
+  --chart-cat-1: #2272b4;
+  --chart-cat-2: #3ba65e;
+
+  --font-db: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-db-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.dark {
+  --background: #11171c;
+  --foreground: #e8ecf0;
+  --card: #1f272d;
+  --card-foreground: #e8ecf0;
+  --popover: #1f272d;
+  --popover-foreground: #e8ecf0;
+  --primary: #4299e0;
+  --primary-foreground: #11171c;
+  --secondary: #1f272d;
+  --secondary-foreground: #e8ecf0;
+  --muted: #1f272d;
+  --muted-foreground: #92a4b3;
+  --accent: rgba(66, 153, 224, 0.12);
+  --accent-foreground: #8acaff;
+  --destructive: #f37c90;
+  --success: #3ba65e;
+  --warning: #de7921;
+  --border: #445461;
+  --input: #445461;
+  --ring: #4299e0;
+  --sidebar: #161c21;
+  --sidebar-foreground: #e8ecf0;
+  --sidebar-border: #2c363e;
+  --chart-cat-1: #4299e0;
+}
+
+@layer base {
+  html,
+  body {
+    font-family: var(--font-db);
+    font-size: 13px;
+    line-height: 20px;
+    -webkit-font-smoothing: antialiased;
+  }
+  code,
+  .font-mono {
+    font-family: var(--font-db-mono);
+  }
+}
+
+/* Unlayered so they win over the component defaults (Card ships rounded-xl + shadow, Tabs ship as a segmented pill). */
+[data-slot="card"] {
+  border-radius: var(--radius-lg);
+  box-shadow: none;
+}
+
+[data-slot="tabs-list"] {
+  height: auto;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 24px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+
+[data-slot="tabs-trigger"] {
+  flex: none;
+  height: auto;
+  padding: 8px 0;
+  margin-bottom: -1px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
+[data-slot="tabs-trigger"]:hover {
+  color: var(--foreground);
+}
+
+[data-slot="tabs-trigger"][data-state="active"] {
+  color: var(--foreground);
+  border-bottom-color: var(--primary);
+}
