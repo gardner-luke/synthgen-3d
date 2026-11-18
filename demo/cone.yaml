@@ -1,0 +1,32 @@
+# SynthGen Studio, traffic-cone walkthrough (~20 s): 3D splat -> synthetic dataset -> training run.
+# Start the local app:  (cd ../app/synthgen-studio && npm run dev)
+# Record (headed so WebGL uses the GPU; headless pegs the main thread):
+#   FFMPEG_PATH=$PWD/node_modules/ffmpeg-static/ffmpeg npx testreel cone.yaml -o out --format mp4 --headed --clean
+# ?demo=1 hides the UC path and submitter email. The default selection is the traffic-cone sample.
+url: http://localhost:8000/?demo=1
+viewport: { width: 1440, height: 900 }
+outputSize: { width: 1600, height: 1000 }
+waitForSelector: "text=Drag to orbit"
+speed: 1
+cursor: { size: 40, rippleColor: "rgba(34, 114, 180, 0.35)" }
+chrome: { url: "synthgen-studio · Databricks Apps", titleBarColor: "#eceff2" }
+background: { gradient: { from: "#0b2026", to: "#1b3139" }, padding: 48, borderRadius: 12 }
+
+steps:
+  # 1. The traffic cone as a 3D Gaussian splat, auto-rotating.
+  - { action: wait, ms: 1500 }
+  - { action: zoom, selector: "[data-demo=splat-viewer]", scale: 1.35, duration: 900, pauseAfter: 4000 }
+  - { action: zoom, scale: 1, duration: 600 }
+
+  # 2. Synthetic dataset: labeled renders with boxes from the alpha mask.
+  - { action: click, selector: "[id$=trigger-dataset]" }
+  - { action: wait, ms: 500 }
+  - { action: hover, selector: "role=button[name^='Synthetic view 3 #3 ']", waitFor: "role=button[name^='Synthetic view 11 ']", pauseAfter: 1200 }
+  - { action: zoom, selector: "[data-demo=gallery-grid]", scale: 1.25, duration: 800, pauseAfter: 2500 }
+  - { action: zoom, scale: 1, duration: 600 }
+
+  # 3. Training run: metrics, training curve, registered in UC as @champion.
+  - { action: click, selector: "[id$=trigger-model]" }
+  - { action: wait, ms: 2500 }
+  - { action: zoom, selector: "text=@champion", scale: 1.8, duration: 800, pauseAfter: 2000 }
+  - { action: zoom, scale: 1, duration: 600, pauseAfter: 1500 }

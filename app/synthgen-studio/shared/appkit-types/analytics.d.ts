@@ -15,7 +15,58 @@ declare module "@databricks/appkit-ui/react" {
           /** INT - use sql.int() */
           refresh_bucket: SQLNumberMarker;
         };
-        result: unknown;
+        result: Array<{
+          /** Lakeflow job run id (primary key) */
+          job_run_id: number;
+          /** @sqlType STRING */
+          submitted_by: string;
+          /** @sqlType TIMESTAMP */
+          submitted_at: string;
+          /** @sqlType STRING */
+          source_image_path: string;
+          /** @sqlType STRING */
+          source_sha256: string;
+          /** @sqlType STRING */
+          target_class_name: string;
+          /** JSON of job parameters */
+          params: string;
+          /** submitted | splat_ready | dataset_ready | model_registered | failed */
+          status: string;
+          /** @sqlType STRING */
+          ply_path: string;
+          /** @sqlType INT */
+          gaussian_count: number;
+          /** @sqlType DOUBLE */
+          idol_seconds: number;
+          /** @sqlType INT */
+          num_views: number;
+          /** @sqlType STRING */
+          dataset_path: string;
+          /** @sqlType DOUBLE */
+          render_seconds: number;
+          /** @sqlType STRING */
+          mlflow_run_id: string;
+          /** @sqlType STRING */
+          model_name: string;
+          /** @sqlType STRING */
+          model_version: string;
+          /** @sqlType DOUBLE */
+          map50: number;
+          /** @sqlType DOUBLE */
+          map50_95: number;
+          /** @sqlType DOUBLE */
+          precision: number;
+          /** @sqlType DOUBLE */
+          recall: number;
+          /** @sqlType DOUBLE */
+          train_seconds: number;
+          /** @sqlType STRING */
+          real_test_image_path: string;
+          /** @sqlType DOUBLE */
+          real_test_max_conf: number;
+          /** @sqlType TIMESTAMP */
+          updated_at: string;
+        }>;
       };
     run_epochs: {
         name: "run_epochs";
@@ -27,7 +78,22 @@ declare module "@databricks/appkit-ui/react" {
           /** INT - use sql.int() */
           refresh_bucket: SQLNumberMarker;
         };
-        result: unknown;
+        result: Array<{
+          /** @sqlType INT */
+          epoch: number;
+          /** @sqlType DOUBLE */
+          map50: number;
+          /** @sqlType DOUBLE */
+          map50_95: number;
+          /** @sqlType DOUBLE */
+          precision: number;
+          /** @sqlType DOUBLE */
+          recall: number;
+          /** @sqlType DOUBLE */
+          box_loss: number;
+          /** @sqlType DOUBLE */
+          cls_loss: number;
+        }>;
       };
     run_view_stats: {
         name: "run_view_stats";
@@ -39,7 +105,16 @@ declare module "@databricks/appkit-ui/react" {
           /** INT - use sql.int() */
           refresh_bucket: SQLNumberMarker;
         };
-        result: unknown;
+        result: Array<{
+          /** @sqlType STRING */
+          split: string;
+          /** @sqlType STRING */
+          background_kind: string;
+          /** @sqlType BIGINT */
+          n: number;
+          /** @sqlType DOUBLE */
+          avg_coverage: number;
+        }>;
       };
     run_views: {
         name: "run_views";
@@ -51,7 +126,30 @@ declare module "@databricks/appkit-ui/react" {
           /** INT - use sql.int() */
           refresh_bucket: SQLNumberMarker;
         };
-        result: unknown;
+        result: Array<{
+          /** @sqlType INT */
+          view_id: number;
+          /** @sqlType STRING */
+          split: string;
+          /** @sqlType STRING */
+          image_path: string;
+          /** pixel coords from rendered alpha mask */
+          bbox_xyxy: unknown[];
+          /** @sqlType INT */
+          width: number;
+          /** @sqlType INT */
+          height: number;
+          /** @sqlType DOUBLE */
+          azimuth_deg: number;
+          /** @sqlType DOUBLE */
+          elevation_deg: number;
+          /** @sqlType DOUBLE */
+          fov_deg: number;
+          /** @sqlType STRING */
+          background_kind: string;
+          /** @sqlType DOUBLE */
+          mask_coverage: number;
+        }>;
       };
     runs_recent: {
         name: "runs_recent";
@@ -61,7 +159,32 @@ declare module "@databricks/appkit-ui/react" {
           /** INT - use sql.int() */
           refresh_bucket: SQLNumberMarker;
         };
-        result: unknown;
+        result: Array<{
+          /** Lakeflow job run id (primary key) */
+          job_run_id: number;
+          /** @sqlType STRING */
+          submitted_by: string;
+          /** @sqlType TIMESTAMP */
+          submitted_at: string;
+          /** @sqlType STRING */
+          target_class_name: string;
+          /** submitted | splat_ready | dataset_ready | model_registered | failed */
+          status: string;
+          /** @sqlType INT */
+          num_views: number;
+          /** @sqlType DOUBLE */
+          map50: number;
+          /** @sqlType DOUBLE */
+          precision: number;
+          /** @sqlType DOUBLE */
+          recall: number;
+          /** @sqlType STRING */
+          model_version: string;
+          /** @sqlType STRING */
+          source_image_path: string;
+          /** @sqlType TIMESTAMP */
+          updated_at: string;
+        }>;
       };
   }
 }

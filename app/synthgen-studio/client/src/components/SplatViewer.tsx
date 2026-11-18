@@ -107,10 +107,13 @@ export function SplatViewer({ url, height = 520, initialView = null }: Props) {
         mesh = new SplatMesh({ fileBytes: bytes, fileType: SplatFileType.PLY });
         await mesh.initialized;
         if (disposed) return;
+        // IDOL writes splats in OpenCV camera convention (y down, z forward); three.js is y up.
+        // A 180° turn about X puts the object upright. The Flip button remains for odd cases.
+        mesh.quaternion.set(1, 0, 0, 0);
         scene.add(mesh);
-        // Frame the object from its splat-center bounding box.
+        // Frame the object from its splat-center bounding box (local coords, then into world).
         const box = mesh.getBoundingBox(true);
-        const center = box.getCenter(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3()).applyQuaternion(mesh.quaternion);
         const size = box.getSize(new THREE.Vector3()).length();
         const dist = (size / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.7;
         controls.target.copy(center);
@@ -120,7 +123,8 @@ export function SplatViewer({ url, height = 520, initialView = null }: Props) {
               -Math.sin(initialView.pitch),
               Math.cos(initialView.pitch) * Math.cos(initialView.yaw),
             )
-          : new THREE.Vector3(0.6, 0.25, 0.75);
+          : new THREE.Vector3(0.6, -0.25, 0.75);
+        dir.applyQuaternion(mesh.quaternion);
         camera.position.copy(center).add(dir.normalize().multiplyScalar(dist));
         camera.near = size / 100;
         camera.far = size * 100;
@@ -156,7 +160,7 @@ export function SplatViewer({ url, height = 520, initialView = null }: Props) {
   }
 
   return (
-    <div className="relative overflow-hidden rounded-lg border bg-muted">
+    <div data-demo="splat-viewer" className="relative overflow-hidden rounded-lg border bg-muted">
       <div ref={host} style={{ height }} className="w-full cursor-grab active:cursor-grabbing" />
       {!ready && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/70">

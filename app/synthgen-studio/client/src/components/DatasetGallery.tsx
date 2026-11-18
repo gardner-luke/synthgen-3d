@@ -179,7 +179,7 @@ export function DatasetGallery({ cfg, runId, bucket, className }: { cfg: AppConf
         </Card>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
+      <div data-demo="gallery-grid" className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
         {views.map((v) => {
           const src = volumeUrl(cfg, 'dataset', v.image_path);
           if (!src) return null;

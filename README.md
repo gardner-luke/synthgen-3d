@@ -8,6 +8,8 @@ One photo of a manufacturing part becomes a trained object detector, end to end 
 
 All three tasks run as one Lakeflow Job on serverless GPU. **SynthGen Studio**, an AppKit (React + TypeScript) Databricks App, starts runs, shows live progress, and has an interactive splat viewer, a dataset gallery with box overlays, and a model card.
 
+In the app you can open three ready-made samples (traffic cone, tractor tire, ball bearing), start runs on your own photos, watch each run's progress, and cancel or delete your runs. Current status, known issues and the roadmap (next up: rare-obstacle detection for off-road autonomy, measured on real photos) are in [`docs/ROADMAP_V2.md`](docs/ROADMAP_V2.md).
+
 ```
 Browser ──► SynthGen Studio (Databricks App, app service principal)
               ├─ upload photo ─────────────► UC volume  raw_inputs
@@ -54,7 +56,7 @@ databricks bundle deploy -p <profile>
 databricks bundle run synthgen_setup -p <profile>   # one-time: schema, volumes, tables, model + CUDA caches
 ```
 
-**2. Sample photo.** Upload a part photo to `/Volumes/<catalog>/synthgen_3d/raw_inputs/samples/`. The app's sample button and the job's default parameter expect `bearing_fag_6304.jpg` (see credits below).
+**2. Sample photos.** The app shows three curated samples (defined in `app/synthgen-studio/shared/samples.ts`). Download the photos from the links in the credits below and upload them to `/Volumes/<catalog>/synthgen_3d/raw_inputs/samples/` as `traffic_cone.jpg`, `tractor_tire.jpg` and `bearing_fag_6304.jpg`. The job's default parameter uses the bearing. Run the pipeline once per sample (job parameters `image_volume_path` and `target_class_name`) so each one opens instantly in the app.
 
 **3. App bundle.** In `app/synthgen-studio/.databricks/bundle/default/variable-overrides.json`:
 
@@ -63,7 +65,7 @@ databricks bundle run synthgen_setup -p <profile>   # one-time: schema, volumes,
   "sql_warehouse_id": "<warehouse id>",
   "pipeline_job_id": "<synthgen-3d-pipeline job id>",
   "catalog": "my_catalog",
-  "golden_run_id": ""
+  "sample_run_ids": ""
 }
 ```
 
@@ -81,7 +83,7 @@ GRANT USE CATALOG ON CATALOG my_catalog TO `<app service principal application i
 GRANT USE SCHEMA ON SCHEMA my_catalog.synthgen_3d TO `<app service principal application id>`;
 ```
 
-Once a run finishes, set `golden_run_id` to its run id and redeploy so the app opens on a known-good run, which helps when GPUs are slow to start during a demo.
+Once the sample runs finish, set `sample_run_ids` to `traffic_cone:<run id>,tractor_tire:<run id>,bearing:<run id>` and redeploy. The samples then open on known-good runs, which helps when GPUs are slow to start during a demo. Any other runs show under "My objects".
 
 ## Local development (app)
 
@@ -105,6 +107,9 @@ Validation metrics come from synthetic views, so they read high (mAP50 ≈ 0.99 
 - **IDOL** code and weights are Apache-2.0, but the pipeline downloads gated third-party components: the FLUX.2-dev VAE (FLUX non-commercial license) and DINOv3 (DINOv3 license). Review those terms before using this beyond a demo.
 - **Ultralytics YOLO** is AGPL-3.0 (enterprise licenses available from Ultralytics).
 - **gsplat** Apache-2.0; **three.js** and **Spark** MIT.
-- **Sample photo:** "[1990s FAG 6304 RSR single row deep groove ball bearing made in Germany, view 1](https://commons.wikimedia.org/wiki/File:1990s_FAG_6304_RSR_single_row_deep_groove_ball_bearing_made_in_Germany_view_1.jpg)" by R. Henrik Nilsson, CC BY 4.0. It isn't included in this repo.
+- **Sample photos** (not included in this repo; the 3D models, renders and detectors made from them are derivatives under the same terms):
+  - "[1990s FAG 6304 RSR single row deep groove ball bearing made in Germany, view 1](https://commons.wikimedia.org/wiki/File:1990s_FAG_6304_RSR_single_row_deep_groove_ball_bearing_made_in_Germany_view_1.jpg)" by R. Henrik Nilsson, CC BY 4.0.
+  - "[Cône de signalisation](https://commons.wikimedia.org/wiki/File:C%C3%B4ne_de_signalisation.jpg)" by Filo gèn', CC BY-SA 4.0.
+  - "[Tractor tyre on Metfield Common](https://commons.wikimedia.org/wiki/File:Tractor_tyre_on_Metfield_Common_-_geograph.org.uk_-_4214750.jpg)" by Evelyn Simak, CC BY-SA 2.0.
 
 This is a demo, not a supported Databricks product.

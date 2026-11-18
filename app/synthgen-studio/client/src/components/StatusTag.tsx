@@ -29,6 +29,8 @@ export function runTone(status: string | null | undefined): { tone: Tone; label:
       return { tone: 'success', label: 'Succeeded' };
     case 'failed':
       return { tone: 'failed', label: 'Failed' };
+    case 'canceled':
+      return { tone: 'skipped', label: 'Canceled' };
     case 'running_generate':
       return { tone: 'running', label: 'Generating splat' };
     case 'splat_ready':

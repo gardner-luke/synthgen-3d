@@ -28,5 +28,5 @@
       "@sparkjsdev/spark": ["../vendor/spark/lib/types/index.d.ts"]
     }
   },
-  "include": ["client/src", "shared/appkit-types"]
+  "include": ["client/src", "shared/appkit-types", "shared/samples.ts"]
 }

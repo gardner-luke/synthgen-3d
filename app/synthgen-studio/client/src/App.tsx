@@ -32,11 +32,12 @@ import { Database, ExternalLink, Plus } from 'lucide-react';
 import { NewRunDialog } from '@/components/NewRunDialog';
 import { StatusTag, type Tone } from '@/components/StatusTag';
 import { RunHistory } from '@/components/RunHistory';
+import { RunActions } from '@/components/RunActions';
 import { PipelineStepper } from '@/components/PipelineStepper';
 import { SplatViewer } from '@/components/SplatViewer';
 import { DatasetGallery } from '@/components/DatasetGallery';
 import { ModelCard } from '@/components/ModelCard';
-import { isTerminal, useConfig, useRefreshBucket, useRunStatus, useStageProgress, volumeUrl, type RunStatus } from '@/lib/api';
+import { isTerminal, useActiveRuns, useConfig, useRefreshBucket, useRunStatus, useStageProgress, volumeUrl, type RunStatus } from '@/lib/api';
 
 function jobTone(s: RunStatus | null): { tone: Tone; label: string } | null {
   if (!s) return null;
@@ -46,6 +47,9 @@ function jobTone(s: RunStatus | null): { tone: Tone; label: string } | null {
   if (s.resultState === 'CANCELED') return { tone: 'skipped', label: 'Canceled' };
   return { tone: 'failed', label: 'Failed' };
 }
+
+// ?demo=1 hides workspace-specific details (UC path, submitter email) for screen recordings.
+const DEMO_MODE = new URLSearchParams(window.location.search).get('demo') === '1';
 
 function readRunFromUrl() {
   const v = Number(new URLSearchParams(window.location.search).get('run'));
@@ -64,11 +68,17 @@ export default function App() {
     return best ? Number(best.job_run_id) : null;
   }, [cfg, recent.data]);
   const runId = pickedRunId ?? defaultRunId;
+  // Bumped after cancel/delete and whenever the set of in-flight runs changes, so run lists re-query.
+  const [nonce, setNonce] = useState(0);
+  const activeRuns = useActiveRuns(nonce);
+  // Changes whenever a run starts or finishes, which busts the cached run-list query.
+  const activeKey = activeRuns.reduce((h, r) => (h * 31 + (r.runId % 1_000_003)) % 1_000_003, activeRuns.length);
+  const activeRun = activeRuns.find((r) => r.runId === runId) ?? null;
   const [tab, setTab] = useState('splat');
   const [creating, setCreating] = useState(false);
   const { status, error: statusError } = useRunStatus(runId);
   const live = !!status && !isTerminal(status);
-  const bucket = useRefreshBucket(live);
+  const bucket = useRefreshBucket(live) + nonce * 7_919 + activeKey;
 
   const taskDone = (k: string) => status?.tasks.find((t) => t.taskKey === k)?.resultState === 'SUCCESS';
   const taskRunning = (k: string) => status?.tasks.find((t) => t.taskKey === k)?.lifeCycleState === 'RUNNING';
@@ -89,14 +99,19 @@ export default function App() {
   const detail = useAnalyticsQuery('run_detail', detailParams, { autoStart: !!uc });
   const row = detail.data?.[0];
 
-  const splatUrl = runId ? `/api/files/splats/download?path=${encodeURIComponent(`runs/${runId}/model.ply`)}` : null;
+  const splatUrl = runId ? `/api/runs/${runId}/splat` : null;
   const splatReady = taskDone('generate_3d_splat');
   const initialView = useInitialView(splatReady ? runId : null);
   const datasetReady = taskDone('render_synthetic_dataset');
   const sourceSrc = volumeUrl(cfg, 'raw', row?.source_image_path);
   const ucPath = cfg?.volumes.raw ? cfg.volumes.raw.split('/').slice(2, 4).join('.') : '';
-  const isGolden = !!cfg?.goldenRunId && runId === cfg.goldenRunId;
+  const sample = cfg?.samples.find((s) => s.runId === runId) ?? null;
   const tag = jobTone(status);
+  const titleClass = row?.target_class_name ?? activeRun?.className ?? null;
+  function onRunChanged(kind: 'canceled' | 'deleted', id: number) {
+    if (kind === 'deleted' && id === runId) setRunId(null);
+    setNonce((n) => n + 1);
+  }
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
@@ -104,7 +119,7 @@ export default function App() {
         <img src="/databricks-logo.png" alt="" className="h-5 w-5" />
         <span className="font-semibold">SynthGen Studio</span>
         <span className="hidden text-muted-foreground sm:inline">3D synthetic data for vision models</span>
-        {ucPath && (
+        {ucPath && !DEMO_MODE && (
           <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <Database className="h-3.5 w-3.5" />
             <span className="font-mono">{ucPath}</span>
@@ -119,7 +134,16 @@ export default function App() {
               <Plus className="mr-1.5 h-4 w-4" /> New run
             </Button>
           </div>
-          <RunHistory ucSchema={uc} bucket={bucket} selected={runId} onSelect={setRunId} goldenRunId={cfg?.goldenRunId ?? null} />
+          <RunHistory
+            ucSchema={uc}
+            bucket={bucket}
+            selected={runId}
+            onSelect={setRunId}
+            samples={cfg?.samples ?? []}
+            collapseMine={DEMO_MODE}
+            activeRuns={activeRuns}
+            onChanged={onRunChanged}
+          />
         </aside>
 
         <main className="min-w-0 flex-1 overflow-y-auto">
@@ -135,7 +159,7 @@ export default function App() {
             <Empty className="py-24">
               <EmptyHeader>
                 <EmptyTitle>Start with one photo</EmptyTitle>
-                <EmptyDescription>Use the sample bearing or upload a photo of your own part.</EmptyDescription>
+                <EmptyDescription>Pick a sample object or upload a photo of your own.</EmptyDescription>
               </EmptyHeader>
               <Button onClick={() => setCreating(true)}>
                 <Plus className="mr-1.5 h-4 w-4" /> New run
@@ -161,14 +185,15 @@ export default function App() {
                 </Breadcrumb>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex min-w-0 flex-wrap items-center gap-3">
-                    {row ? (
-                      <h1 className="truncate text-[22px] font-semibold leading-7">{row.target_class_name} detector</h1>
+                    {titleClass ? (
+                      <h1 className="truncate text-[22px] font-semibold leading-7">{titleClass} detector</h1>
                     ) : (
                       <Skeleton className="h-7 w-56" />
                     )}
                     {tag && <StatusTag tone={tag.tone} label={tag.label} />}
-                    {isGolden && <span className="rounded-sm border px-1.5 text-xs leading-5 text-muted-foreground">Golden run</span>}
+                    {sample && <span className="rounded-sm border px-1.5 text-xs leading-5 text-muted-foreground">Sample · {sample.domain}</span>}
                   </div>
+                  <div className="flex items-center gap-2">
                   {status?.runPageUrl && (
                     <Button asChild variant="outline" size="sm">
                       <a href={status.runPageUrl} target="_blank" rel="noreferrer">
@@ -176,10 +201,14 @@ export default function App() {
                       </a>
                     </Button>
                   )}
+                  {runId && status && (
+                    <RunActions runId={runId} label={titleClass ?? 'this'} active={!isTerminal(status)} protectedRun={!!sample} onChanged={onRunChanged} />
+                  )}
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Run <span className="tabular-nums">{runId}</span>
-                  {row?.submitted_by && <> · Submitted by {row.submitted_by}</>}
+                  {row?.submitted_by && !DEMO_MODE && <> · Submitted by {row.submitted_by}</>}
                   {status?.startTime && <> · Started {new Date(status.startTime).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</>}
                 </p>
               </div>
@@ -223,7 +252,8 @@ export default function App() {
                         <CardDescription className="text-xs">The only input. Hashed for lineage.</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-3">
-                        {sourceSrc ? <img src={sourceSrc} alt="Source part" className="w-full rounded-md" /> : <Skeleton className="aspect-square w-full" />}
+                        {sourceSrc ? <img src={sourceSrc} alt="Source photo" className="w-full rounded-md" /> : <Skeleton className="aspect-square w-full" />}
+                        {sample && <p className="text-[11px] leading-4 text-muted-foreground">Photo: {sample.credit}</p>}
                         <dl className="space-y-1 text-xs">
                           <div className="flex justify-between gap-2">
                             <dt className="text-muted-foreground">Gaussians</dt>

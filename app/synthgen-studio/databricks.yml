@@ -13,8 +13,11 @@ variables:
     default: main
   schema:
     default: synthgen_3d
+  sample_run_ids:
+    description: Finished run per sample object, e.g. "traffic_cone:123,tractor_tire:456,bearing:789" (keys in shared/samples.ts)
+    default: ""
   golden_run_id:
-    description: Optional finished pipeline run the app opens by default ("" = newest registered run)
+    description: Older single-sample setting; used for the bearing sample if sample_run_ids doesn't map it
     default: ""
 
 resources:
@@ -42,6 +45,8 @@ resources:
             value: /Volumes/${var.catalog}/${var.schema}/splat_models
           - name: DATABRICKS_VOLUME_DATASET
             value: /Volumes/${var.catalog}/${var.schema}/synthetic_dataset
+          - name: SAMPLE_RUN_IDS
+            value: ${var.sample_run_ids}
           - name: GOLDEN_RUN_ID
             value: ${var.golden_run_id}
       lifecycle:
@@ -85,6 +90,32 @@ resources:
             securable_full_name: ${var.catalog}.${var.schema}.training_epochs
             securable_type: TABLE
             permission: SELECT
+        # Write access backs the app's cancel/delete actions (delete removes a run's rows and files).
+        - name: splats-volume-write
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.splat_models
+            securable_type: VOLUME
+            permission: WRITE_VOLUME
+        - name: dataset-volume-write
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.synthetic_dataset
+            securable_type: VOLUME
+            permission: WRITE_VOLUME
+        - name: runs-table-write
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.pipeline_runs
+            securable_type: TABLE
+            permission: MODIFY
+        - name: views-table-write
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.synthetic_views
+            securable_type: TABLE
+            permission: MODIFY
+        - name: epochs-table-write
+          uc_securable:
+            securable_full_name: ${var.catalog}.${var.schema}.training_epochs
+            securable_type: TABLE
+            permission: MODIFY
 
 targets:
   # Pick the workspace with a CLI profile: databricks bundle deploy -p <profile>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SampleDef } from '../../../shared/samples';
 
 export type VolumeKey = 'raw' | 'splats' | 'dataset';
 
@@ -8,6 +9,9 @@ export interface AppConfig {
   volumes: Record<VolumeKey, string>;
   /** catalog.schema the pipeline writes to; bound into every analytics query. */
   ucSchema: string;
+  /** Curated sample objects; runId is the finished run to open (null if not run in this workspace yet). */
+  samples: (SampleDef & { runId: number | null })[];
+  /** First sample with a run; the default selection. */
   goldenRunId: number | null;
   presets: Record<'quick' | 'full', { gaussian_count: number; idol_steps: number; num_views: number; epochs: number; image_size: number }>;
 }
@@ -207,4 +211,65 @@ export function useInitialView(runId: number | null) {
   }, [runId]);
   const current = useMemo(() => (view && view.runId === runId ? { yaw: view.yaw, pitch: view.pitch } : null), [view, runId]);
   return { view: current, ready: settled === runId };
+}
+
+export interface ActiveRun {
+  runId: number;
+  className: string | null;
+  submittedBy: string | null;
+  startTime: number | null;
+  elapsedMs: number | null;
+  lifeCycleState: string | null;
+  queued: boolean;
+  tasks: { taskKey: string; lifeCycleState: string | null; resultState: string | null; startTime: number | null }[];
+}
+
+/** In-flight runs of the pipeline job, polled every 5 s while any are active (20 s otherwise). */
+export function useActiveRuns(nonce: number) {
+  const [runs, setRuns] = useState<ActiveRun[]>([]);
+  const [tick, setTick] = useState(0);
+  const hasActive = runs.length > 0;
+  useEffect(() => {
+    let stop = false;
+    fetch('/api/runs/active', { cache: 'no-store' })
+      .then(async (r) => (r.ok ? ((await r.json()) as { runs: ActiveRun[] }) : null))
+      .then((j) => {
+        if (!stop && j) setRuns(j.runs);
+      })
+      .catch(() => undefined);
+    const id = setTimeout(() => setTick((t) => t + 1), hasActive ? 5000 : 20000);
+    return () => {
+      stop = true;
+      clearTimeout(id);
+    };
+  }, [tick, nonce, hasActive]);
+  return runs;
+}
+
+const TASK_LABEL: Record<string, string> = {
+  generate_3d_splat: 'Generating splat',
+  render_synthetic_dataset: 'Rendering',
+  train_vision_detector: 'Training',
+};
+
+/** Step-level progress for an in-flight run: how many of the 3 tasks are done and what is happening now. */
+export function activeProgress(r: ActiveRun): { done: number; running: number | null; label: string } {
+  const done = r.tasks.filter((t) => t.resultState === 'SUCCESS').length;
+  const runningIdx = r.tasks.findIndex((t) => t.lifeCycleState === 'RUNNING');
+  if (r.queued) return { done, running: null, label: 'Queued' };
+  if (runningIdx >= 0) {
+    const t = r.tasks[runningIdx];
+    return { done, running: runningIdx, label: `${done + 1}/3 · ${TASK_LABEL[t.taskKey] ?? t.taskKey}` };
+  }
+  return { done, running: done < 3 ? done : null, label: done === 0 ? 'Starting GPU' : `${done + 1}/3 · Starting` };
+}
+
+export async function cancelRun(runId: number) {
+  const r = await fetch(`/api/runs/${runId}/cancel`, { method: 'POST' });
+  if (!r.ok) throw new Error(await readError(r, `Cancel failed (${r.status})`));
+}
+
+export async function deleteRun(runId: number) {
+  const r = await fetch(`/api/runs/${runId}`, { method: 'DELETE' });
+  if (!r.ok) throw new Error(await readError(r, `Delete failed (${r.status})`));
 }

@@ -1,0 +1,41 @@
+# SynthGen Studio preview (~25 s). Run against the local dev server so no workspace URL or SSO appears:
+#   (cd ../app/synthgen-studio && npm run dev)   then   FFMPEG_PATH=$(which ffmpeg) npx testreel preview.yaml -o out --format mp4
+# ?demo=1 hides the UC path and submitter email. The default selection is the first sample (traffic cone).
+url: http://localhost:8000/?demo=1
+viewport: { width: 1440, height: 900 }
+outputSize: { width: 1600, height: 1000 }
+waitForSelector: "text=Drag to orbit"
+speed: 1
+cursor: { size: 40, rippleColor: "rgba(34, 114, 180, 0.35)" }
+chrome: { url: "synthgen-studio · Databricks Apps", titleBarColor: "#eceff2" }
+background: { gradient: { from: "#0b2026", to: "#1b3139" }, padding: 48, borderRadius: 12 }
+
+steps:
+  # 1. The finished traffic-cone sample: the pipeline stepper plus the splat auto-rotating.
+  - { action: wait, ms: 1500 }
+  - { action: zoom, selector: "[data-demo=splat-viewer]", scale: 1.35, duration: 900, pauseAfter: 3500 }
+  - { action: zoom, scale: 1, duration: 600 }
+
+  # 2. Synthetic dataset: hundreds of labeled renders, boxes drawn from the alpha mask.
+  - { action: click, selector: "role=tab[name='Synthetic dataset']", waitFor: "role=tab[name='Synthetic dataset']" }
+  - { action: wait, ms: 300 }
+  - { action: hover, selector: "role=button[name^='Synthetic view 3 ']", waitFor: "role=button[name^='Synthetic view 11 ']", pauseAfter: 1200 }
+  - { action: zoom, selector: "[data-demo=gallery-grid]", scale: 1.25, duration: 800, pauseAfter: 2000 }
+  - { action: zoom, scale: 1, duration: 600 }
+
+  # 3. Model: metrics, training curve, registered in Unity Catalog with @champion.
+  - { action: click, selector: "role=tab[name='Model']" }
+  - { action: wait, ms: 2200 }
+  - { action: zoom, selector: "text=@champion", scale: 1.8, duration: 800, pauseAfter: 1600 }
+  - { action: zoom, scale: 1, duration: 600 }
+
+  # 4. A second sample: the tractor tire.
+  - { action: click, selector: "[data-demo=sample-tractor_tire]" }
+  - { action: click, selector: "role=tab[name='3D model']", waitFor: "role=heading[name='tractor_tire detector']" }
+  - { action: hover, selector: "role=heading[name='tractor_tire detector']", waitFor: "text=Drag to orbit", timeout: 30000, pauseAfter: 3000 }
+
+  # 5. Start your own: New run with the sample picker and upload.
+  - { action: click, selector: "role=button[name='New run']" }
+  - { action: hover, selector: "[data-demo=pick-bearing]", pauseAfter: 600 }
+  - { action: click, selector: "[data-demo=pick-tractor_tire]", pauseAfter: 900 }
+  - { action: hover, selector: "role=button[name='Start run']", pauseAfter: 1800 }

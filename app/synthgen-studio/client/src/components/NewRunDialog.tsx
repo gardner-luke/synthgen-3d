@@ -17,7 +17,7 @@ import {
 import { ImageUp, Loader2 } from 'lucide-react';
 import { readError, type AppConfig } from '@/lib/api';
 
-const SAMPLE = { rel: 'samples/bearing_fag_6304.jpg', label: 'Ball bearing (sample)', className: 'bearing' };
+const rawSrc = (rel: string) => `/api/files/raw/raw?path=${encodeURIComponent(rel)}`;
 
 interface Props {
   cfg: AppConfig | null;
@@ -30,8 +30,11 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
-  const [useSample, setUseSample] = useState(true);
-  const [className, setClassName] = useState(SAMPLE.className);
+  const samples = cfg?.samples ?? [];
+  // null = the user's own upload
+  const [sampleKey, setSampleKey] = useState<string | null>(samples[0]?.key ?? 'traffic_cone');
+  const sample = samples.find((s) => s.key === sampleKey) ?? null;
+  const [className, setClassName] = useState(sample?.className ?? 'traffic_cone');
   const [preset, setPreset] = useState<'quick' | 'full'>('full');
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,18 +53,26 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
       }
       setError(null);
       setFile(f);
-      setUseSample(false);
+      setSampleKey(null);
       setPreview(URL.createObjectURL(f));
-      if (className === SAMPLE.className) setClassName('part');
+      if (samples.some((s) => s.className === className)) setClassName('part');
     },
-    [className],
+    [className, samples],
   );
+
+  const chooseSample = (key: string) => {
+    const s = samples.find((x) => x.key === key);
+    if (!s) return;
+    setSampleKey(key);
+    setClassName(s.className);
+    setError(null);
+  };
 
   const start = async () => {
     setError(null);
     try {
-      let rel = SAMPLE.rel;
-      if (!useSample && file) {
+      let rel = sample?.image ?? '';
+      if (!sample && file) {
         setBusy('Uploading to Unity Catalog…');
         const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg';
         rel = `uploads/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`;
@@ -86,7 +97,7 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
   };
 
   const p = cfg?.presets[preset];
-  const sampleSrc = `/api/files/raw/raw?path=${encodeURIComponent(SAMPLE.rel)}`;
+  const mainSrc = sample ? rawSrc(sample.image) : preview;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !busy && onOpenChange(o)}>
@@ -94,7 +105,7 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
         <DialogHeader>
           <DialogTitle>New run</DialogTitle>
           <DialogDescription>
-            One photo of a part. The job reconstructs it in 3D, renders a labeled dataset, and trains a detector registered in Unity Catalog.
+            One photo of an object. The job reconstructs it in 3D, renders a labeled dataset, and trains a detector registered in Unity Catalog.
           </DialogDescription>
         </DialogHeader>
 
@@ -104,7 +115,7 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
             <div
               role="button"
               tabIndex={0}
-              aria-label="Upload a part photo"
+              aria-label="Upload a photo"
               onClick={() => input.current?.click()}
               onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && input.current?.click()}
               onDragOver={(e) => {
@@ -121,31 +132,42 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
                 dragging ? 'border-primary' : 'border-input hover:border-primary'
               }`}
             >
-              <img src={useSample ? sampleSrc : (preview ?? sampleSrc)} alt="Selected part" className="absolute inset-0 h-full w-full object-cover" />
-              <div className="relative flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+              {mainSrc && <img src={mainSrc} alt="Selected object" className="absolute inset-0 h-full w-full object-cover" />}
+              <div
+                className={`relative flex items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 transition-opacity ${mainSrc ? 'opacity-0 group-hover:opacity-100' : ''}`}
+              >
                 <ImageUp className="h-4 w-4 text-muted-foreground" />
                 <span className="text-xs">Drop a photo or click to browse</span>
               </div>
               <input ref={input} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
             </div>
-            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span className="truncate">{useSample ? SAMPLE.label : file?.name}</span>
-              {!useSample && (
-                <Button
+            <div className="grid grid-cols-4 gap-1.5 pt-1" role="radiogroup" aria-label="Sample objects">
+              {samples.map((s) => (
+                <button
+                  key={s.key}
                   type="button"
-                  variant="link"
-                  size="sm"
-                  className="h-auto p-0 text-xs"
-                  onClick={() => {
-                    setUseSample(true);
-                    setFile(null);
-                    setClassName(SAMPLE.className);
-                  }}
+                  role="radio"
+                  aria-checked={sampleKey === s.key}
+                  data-demo={`pick-${s.key}`}
+                  onClick={() => chooseSample(s.key)}
+                  title={s.label}
+                  className={`overflow-hidden rounded-md border text-left transition-colors ${sampleKey === s.key ? 'border-primary ring-1 ring-primary' : 'hover:border-primary'}`}
                 >
-                  Use sample
-                </Button>
-              )}
+                  <img src={rawSrc(s.image)} alt={s.label} className="aspect-square w-full object-cover" />
+                </button>
+              ))}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={sampleKey === null}
+                onClick={() => (file ? setSampleKey(null) : input.current?.click())}
+                className={`flex aspect-square flex-col items-center justify-center gap-1 rounded-md border border-dashed text-[11px] transition-colors ${sampleKey === null ? 'border-primary ring-1 ring-primary' : 'hover:border-primary'}`}
+              >
+                <ImageUp className="h-4 w-4 text-muted-foreground" />
+                {file ? 'Your photo' : 'Upload'}
+              </button>
             </div>
+            <p className="truncate text-xs text-muted-foreground">{sample ? `${sample.label} · ${sample.domain}` : (file?.name ?? '')}</p>
           </div>
 
           <div className="space-y-4">
@@ -190,7 +212,7 @@ export function NewRunDialog({ cfg, open, onOpenChange, onStarted }: Props) {
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={!!busy}>
             Cancel
           </Button>
-          <Button onClick={() => void start()} disabled={!!busy || !className.trim() || (!useSample && !file)}>
+          <Button onClick={() => void start()} disabled={!!busy || !className.trim() || (!sample && !file)}>
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {busy ?? 'Start run'}
           </Button>
